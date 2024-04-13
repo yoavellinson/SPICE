@@ -44,5 +44,7 @@ class Sim2Sem(nn.Module):
             return self.head.loss(fea, target)
         elif forward_type == "feature_only":
             return fea
+        elif forward_type == "feature_with_head":
+            return self.head.forward(fea)
         else:
             raise TypeError

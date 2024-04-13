@@ -182,7 +182,7 @@ class SemHead(nn.Module):
 
         return idx_select_all, labels_select_all
 
-    def forward(self, fea, **kwargs):
+    def forward(self, fea,rtrn_features=False,**kwargs):
 
         if self.feature_conv is not None:
             fea_conv = self.feature_conv(fea)
@@ -194,7 +194,8 @@ class SemHead(nn.Module):
             feature = feature.flatten(start_dim=1)
         else:
             feature = fea_conv
-
+        if rtrn_features:
+            return feature
         cls_score = self.classifier(feature)
 
         cls_score = cls_score / self.T

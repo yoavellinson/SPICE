@@ -29,14 +29,14 @@ model_names = sorted(name for name in models.__dict__
 parser = argparse.ArgumentParser(description='PyTorch ImageNet Training')
 parser.add_argument(
     "--config-file",
-    default="./configs/stl10/eval.py",
+    default="./configs/speech_data/eval.py",
     metavar="FILE",
     help="path to config file",
     type=str,
 )
 parser.add_argument(
     "--weight",
-    default="./model_zoo/self_model_stl10.pth.tar",
+    default="./self_model_stl10.pth.tar",
     metavar="FILE",
     help="path to weight file",
     type=str,
@@ -65,7 +65,7 @@ def main():
     cfg.model.pretrained = args.weight
     cfg.proto = args.proto
     cfg.embedding = args.embedding
-    cfg.all = args.all
+    cfg.all = False
     if cfg.all:
         cfg.data_test.split = "train+test"
         cfg.data_test.all = True
@@ -108,7 +108,7 @@ def main():
     cudnn.benchmark = True
 
     # Data loading code
-    dataset_val = build_dataset(cfg.data_test)
+    dataset_val = build_dataset(cfg.data_test) #create a new dataset for theis function
     val_loader = torch.utils.data.DataLoader(dataset_val, batch_size=cfg.batch_size, shuffle=False, num_workers=1)
 
     model.eval()
@@ -119,85 +119,21 @@ def main():
     pred_labels = []
     scores_all = []
 
-    for _, (images, _, labels, idx) in enumerate(val_loader):
-        images = images.to(cfg.gpu, non_blocking=True)
+    for images, labels, idx in val_loader:
+        images = images.to(cfg.gpu, non_blocking=True) #[Batch,channels,96,96] = [100,3,96,96]
         with torch.no_grad():
-            scores = model(images, forward_type="sem")
+            embds = model(images, forward_type="feature_with_head") #returns the features before the classification model. [Batch,512]
+        for i in range(10):
+            plt.imsave(f'/home/workspace/yoavellinson/unsupervised_learning/SPICE/outputs/mfcc_{i}.png',images[i][0,:,:].cpu())
+        break
+    #TODO
+    # 1. Create a matrix for the embeddings, arrange it by label 
+    # 2. compute the affinity matrix with cosine distance
+    # 3. plot the distance matrix
+    # 4. test MFCC
 
-        assert len(scores) == num_heads
-
-        pred_idx = scores[0].argmax(dim=1)
-        pred_labels.append(pred_idx)
-        scores_all.append(scores[0])
-
-        gt_labels.append(labels)
-
-    gt_labels = torch.cat(gt_labels).long().cpu().numpy()
-
-    pred_labels = torch.cat(pred_labels).long().cpu().numpy()
-    scores = torch.cat(scores_all).cpu()
-
-    try:
-        acc = calculate_acc(pred_labels, gt_labels)
-    except:
-        acc = -1
-
-    nmi = calculate_nmi(pred_labels, gt_labels)
-    ari = calculate_ari(pred_labels, gt_labels)
-
-    print("ACC: {}, NMI: {}, ARI: {}".format(acc, nmi, ari))
-
-    if cfg.proto:
-        data = val_loader.dataset.data
-        feas_sim = np.load(cfg.embedding)
-        feas_sim = torch.from_numpy(feas_sim)
-        centers = model(feas_sim=feas_sim, scores=scores, forward_type="proto")
-
-        sim_all = torch.einsum('nd,cd->nc', [feas_sim.cpu(), centers.cpu()])
-
-        _, top_10 = torch.topk(sim_all, 10, 0)
-
-        imgs = []
-        for c in range(cfg.num_cluster):
-            idx_c = top_10[:, c]
-            img_c = data[idx_c, ...]
-            imgs.append(img_c)
-            for ii in range(10):
-                img_c_ii = img_c[ii, ...].transpose([1, 2, 0])
-                imsave('{}/proto/{}_{}.png'.format(cfg.results.output_dir, c, ii), img_c_ii)
-
-        for c in range(cfg.num_cluster):
-            dataset_val.data = imgs[c]
-            for i in range(len(dataset_val)):
-                img, _, labels, idx = dataset_val[i]
-                img = torch.unsqueeze(img, dim=0).to(cfg.gpu, non_blocking=True)
-                with torch.no_grad():
-                    fea_conv = model(img, forward_type="feature_only")
-                fea_conv = fea_conv.reshape(512, 49)
-                center = centers[c:c+1, :]
-                sim_map = torch.einsum('nd,dm->nm', [center.cpu(), fea_conv.cpu()])
-                sim_map = sim_map.reshape([7, 7])
-                sim_map = (sim_map - sim_map.min()) / (sim_map.max() - sim_map.min())
-                sim_map = sim_map.cpu().numpy()
-
-                img_c_ii = imgs[c][i, ...].transpose([1, 2, 0])
-
-                sim_map = Image.fromarray(np.uint8(sim_map * 255))
-                sim_map = sim_map.resize((img_c_ii.shape[1], img_c_ii.shape[0]), resample=PIL.Image.BILINEAR)
-                sim_map = np.asarray(sim_map)
-
-                att_mask = np.zeros_like(img_c_ii)
-                att_mask[:, :, 0] = sim_map
-
-                cmap = plt.get_cmap('jet')
-                attMap = sim_map
-                attMapV = cmap(attMap)
-                attMapV = np.delete(attMapV, 3, 2) * 255
-
-                attMap = 0.6 * img_c_ii + 0.4 * attMapV
-                attMap = attMap.astype(np.uint8)
-                imsave('{}/proto/{}_{}_att.png'.format(cfg.results.output_dir, c, i), attMap)
-
+    # print(scores)
+    # assert len(scores) == num_heads
 
 if __name__ == '__main__':
     main()

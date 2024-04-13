@@ -99,7 +99,7 @@ class SemHeadMulti(nn.Module):
             if isinstance(fea, list):
                 cls_socre_h = self.__getattr__("head_{}".format(h)).forward(fea[h])
             else:
-                cls_socre_h = self.__getattr__("head_{}".format(h)).forward(fea)
+                cls_socre_h = self.__getattr__("head_{}".format(h)).forward(fea,rtrn_features=True)
 
             cls_score.append(cls_socre_h)
 

@@ -4,6 +4,7 @@ from spice.data.stl10_embedding import STL10EMB
 from spice.data.cifar import CIFAR10, CIFAR20
 from spice.data.imagenet import ImageNetSubEmb, ImageNetSubEmbLMDB, TImageNetEmbLMDB
 from spice.data.npy import NPYEMB
+from spice.data.speech_dataset import SpeechDataset
 
 
 def build_dataset(data_cfg):
@@ -21,6 +22,7 @@ def build_dataset(data_cfg):
                         transform1=train_trans1,
                         transform2=train_trans2,
                         download=False)
+        
     elif type == "stl10_emb":
         dataset = STL10EMB(root=data_cfg.root_folder,
                            split=data_cfg.split,
@@ -77,6 +79,9 @@ def build_dataset(data_cfg):
                                    embedding=data_cfg.embedding,
                                    transform1=train_trans1,
                                    transform2=train_trans2)
+    elif type == 'speech_dataset':
+        dataset = SpeechDataset(split=data_cfg.split,
+                                feature_type=data_cfg.speech_feature_type)
     else:
         assert TypeError
 
