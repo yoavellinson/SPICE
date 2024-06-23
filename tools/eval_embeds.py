@@ -14,7 +14,7 @@ def compute_affinity_matrix(embeddings,kernel = None):
     affinity = 1- (cosine_similarities + 1.0) / 2.0
     if kernel:
         sigma = torch.sort(affinity**2,1)[0].max() 
-        sigma *=0.0005
+        sigma *=0.0008
         affinity = torch.exp(-(affinity**2)/sigma)
     return affinity
 metainfo = pd.read_csv('/dsi/gannot-lab1/LibriSpeech_mls_french/metainfo.csv')
@@ -35,7 +35,7 @@ female_names = set(metainfo['SPEAKER'][metainfo['GENDER'] == 'F'])
 
 male_embds = []
 female_embds = []
-with open('/home/workspace/yoavellinson/unsupervised_learning/SPICE/outputs/mel_embeds.pickle','rb') as f:
+with open('/home/workspace/yoavellinson/unsupervised_learning/SPICE/outputs/spec_embeds.pickle','rb') as f:
     loaded_embeds = pickle.load(f)
 
 for l in loaded_embeds.keys():
@@ -55,4 +55,4 @@ shw = plt.imshow(aff_mat,vmin=0, vmax=1, cmap='turbo')
 bat = plt.colorbar(shw)
 plt.xticks([int(male_idx/2),male_idx,int(male_idx * 1.5)],['males','','females'])
 plt.yticks([int(male_idx/2),male_idx,int(male_idx * 1.5)],['males','','females'])
-plt.savefig('/home/workspace/yoavellinson/unsupervised_learning/SPICE/outputs/mel_embeds_kernel_gender_turbo.png')
+plt.savefig('/home/workspace/yoavellinson/unsupervised_learning/SPICE/outputs/spec_embeds_kernel_gender_turbo.png')
