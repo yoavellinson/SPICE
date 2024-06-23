@@ -20,8 +20,8 @@ from matplotlib.pyplot import imsave
 from PIL import Image
 import matplotlib.pyplot as plt
 import PIL
-
-
+import pickle
+from tqdm import tqdm
 model_names = sorted(name for name in models.__dict__
     if name.islower() and not name.startswith("__")
     and callable(models.__dict__[name]))
@@ -108,32 +108,28 @@ def main():
     cudnn.benchmark = True
 
     # Data loading code
-    dataset_val = build_dataset(cfg.data_test) #create a new dataset for theis function
+    dataset_val = build_dataset(cfg.data_test) #create a new dataset for this function
     val_loader = torch.utils.data.DataLoader(dataset_val, batch_size=cfg.batch_size, shuffle=False, num_workers=1)
 
     model.eval()
 
     num_heads = len(cfg.model.head.multi_heads)
     assert num_heads == 1
-    gt_labels = []
-    pred_labels = []
-    scores_all = []
+  
+    final_embeddings = {}
 
-    for images, labels, idx in val_loader:
+    for images, labels, idx in tqdm(val_loader):
         images = images.to(cfg.gpu, non_blocking=True) #[Batch,channels,96,96] = [100,3,96,96]
         with torch.no_grad():
             embds = model(images, forward_type="feature_with_head") #returns the features before the classification model. [Batch,512]
-        for i in range(10):
-            plt.imsave(f'/home/workspace/yoavellinson/unsupervised_learning/SPICE/outputs/mfcc_{i}.png',images[i][0,:,:].cpu())
-        break
-    #TODO
-    # 1. Create a matrix for the embeddings, arrange it by label 
-    # 2. compute the affinity matrix with cosine distance
-    # 3. plot the distance matrix
-    # 4. test MFCC
-
-    # print(scores)
-    # assert len(scores) == num_heads
+        embds = embds[0].detach().cpu()
+        for index,l in enumerate(labels):
+            if l in final_embeddings.keys():
+                final_embeddings[str(l)].append(embds[index,:])
+            else:
+                final_embeddings[str(l)] = [embds[index,:]]
+    with open('/home/workspace/yoavellinson/unsupervised_learning/SPICE/outputs/spec_embeds.pickle','wb') as f:
+        pickle.dump(final_embeddings,f,protocol=pickle.HIGHEST_PROTOCOL)
 
 if __name__ == '__main__':
     main()
